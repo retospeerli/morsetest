@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Morse-Prüfungsapp</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <h1>Morse-Prüfungsapp</h1>
+      <p class="subtitle">Prüfung und freies Üben mit echter Morsetaste</p>
+    </header>
+
+    <main>
+      <section id="setupScreen" class="panel">
+        <h2>Start</h2>
+
+        <div class="grid two">
+          <div class="card">
+            <h3>Modus</h3>
+
+            <label class="mode-option">
+              <input type="radio" name="appMode" value="exam" checked />
+              <span>Prüfungsmodus</span>
+            </label>
+
+            <label class="mode-option">
+              <input type="radio" name="appMode" value="practice" />
+              <span>Übungsmodus: freies Morsen</span>
+            </label>
+
+            <div class="info-box">
+              <p><strong>Prüfungsmodus:</strong> Du gibst zuerst deinen Vor- und Nachnamen ein und morst danach deinen ganzen Namen.</p>
+              <p><strong>Übungsmodus:</strong> Du morst frei. Die App schreibt mit, was sie versteht.</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Angaben und Einstellungen</h3>
+
+            <div id="nameFields">
+              <label class="setting">
+                <span>Vorname</span>
+                <input id="firstNameInput" type="text" autocomplete="given-name" />
+              </label>
+
+              <label class="setting">
+                <span>Nachname</span>
+                <input id="lastNameInput" type="text" autocomplete="family-name" />
+              </label>
+            </div>
+
+            <label class="setting">
+              <span>Geschwindigkeit (Punktdauer): <strong id="unitLabel">140 ms</strong></span>
+              <input id="unitSlider" type="range" min="80" max="260" step="10" value="140" />
+            </label>
+
+            <label class="setting">
+              <span>Tonhöhe: <strong id="freqLabel">650 Hz</strong></span>
+              <input id="freqSlider" type="range" min="300" max="1000" step="10" value="650" />
+            </label>
+
+            <label class="setting">
+              <span>Toleranz: <strong id="toleranceLabel">mittel</strong></span>
+              <input id="toleranceSlider" type="range" min="0" max="2" step="1" value="1" />
+            </label>
+
+            <button id="startBtn" class="primary-btn">App starten</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="appScreen" class="panel hidden">
+        <div class="top-bar">
+          <div>
+            <h2 id="screenTitle">Prüfung</h2>
+            <p id="screenInfo" class="small-text"></p>
+          </div>
+          <button id="backBtn" class="ghost-btn">Zurück</button>
+        </div>
+
+        <div class="grid two training-grid">
+          <div class="card target-card">
+            <p class="label">Aufgabe</p>
+            <div id="targetText" class="target-text">NAME</div>
+
+            <div class="target-actions">
+              <button id="playBtn" class="secondary-btn">Vorspielen</button>
+              <button id="clearBtn" class="ghost-btn">Eingabe löschen</button>
+              <button id="finishBtn" class="secondary-btn">Überprüfen</button>
+            </div>
+
+            <div class="morse-hint">
+              <p id="hintText" class="small-text"></p>
+            </div>
+          </div>
+
+          <div class="card input-card">
+            <p class="label">Deine Eingabe</p>
+
+            <div id="livePattern" class="live-pattern">–</div>
+            <div id="liveDecode" class="live-decode">…</div>
+
+            <button id="morseKey" class="morse-key" aria-label="Morsetaste">
+              Drücken und halten
+            </button>
+
+            <div class="legend">
+              <div><strong>Leertaste</strong> oder Taste am Bildschirm</div>
+              <div><strong>Kurz</strong> = Punkt · &nbsp; <strong>Lang</strong> = Strich −</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card feedback-card">
+          <p class="label">Rückmeldung</p>
+          <div id="feedback" class="feedback neutral">Noch keine Eingabe.</div>
+        </div>
+
+        <div class="grid three">
+          <div class="card stat-card">
+            <p class="label">Erkannter Text</p>
+            <div id="recognizedText" class="result-text">–</div>
+          </div>
+          <div class="card stat-card">
+            <p class="label">Zeichen</p>
+            <div id="charCount" class="stat-value">0</div>
+          </div>
+          <div class="card stat-card">
+            <p class="label">Status</p>
+            <div id="statusText" class="result-text">Bereit</div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
