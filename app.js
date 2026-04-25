@@ -1,29 +1,9 @@
 const MORSE_MAP = {
-  A: ".-",
-  B: "-...",
-  C: "-.-.",
-  D: "-..",
-  E: ".",
-  F: "..-.",
-  G: "--.",
-  H: "....",
-  I: "..",
-  J: ".---",
-  K: "-.-",
-  L: ".-..",
-  M: "--",
-  N: "-.",
-  O: "---",
-  P: ".--.",
-  Q: "--.-",
-  R: ".-.",
-  S: "...",
-  T: "-",
-  U: "..-",
-  V: "...-",
-  W: ".--",
-  X: "-..-",
-  Y: "-.--",
+  A: ".-", B: "-...", C: "-.-.", D: "-..", E: ".",
+  F: "..-.", G: "--.", H: "....", I: "..", J: ".---",
+  K: "-.-", L: ".-..", M: "--", N: "-.", O: "---",
+  P: ".--.", Q: "--.-", R: ".-.", S: "...", T: "-",
+  U: "..-", V: "...-", W: ".--", X: "-..-", Y: "-.--",
   Z: "--.."
 };
 
@@ -32,6 +12,8 @@ const appScreen = document.getElementById("appScreen");
 
 const firstNameInput = document.getElementById("firstNameInput");
 const lastNameInput = document.getElementById("lastNameInput");
+const nameFields = document.getElementById("nameFields");
+
 const startBtn = document.getElementById("startBtn");
 const backBtn = document.getElementById("backBtn");
 
@@ -49,7 +31,6 @@ const hintText = document.getElementById("hintText");
 
 const playBtn = document.getElementById("playBtn");
 const clearBtn = document.getElementById("clearBtn");
-const finishBtn = document.getElementById("finishBtn");
 
 const morseKey = document.getElementById("morseKey");
 const livePattern = document.getElementById("livePattern");
@@ -60,10 +41,20 @@ const recognizedTextEl = document.getElementById("recognizedText");
 const charCountEl = document.getElementById("charCount");
 const statusTextEl = document.getElementById("statusText");
 
-let appMode = "exam"; // exam | practice
+const chooseKeyBtn = document.getElementById("chooseKeyBtn");
+const currentKeyLabel = document.getElementById("currentKeyLabel");
+const currentKeyLabel2 = document.getElementById("currentKeyLabel2");
+
+let appMode = "free";
 let expectedText = "";
+let displaySentence = "";
+
 let recognizedLetters = [];
 let currentInputSymbols = "";
+
+let morseKeyCode = "Space";
+let morseKeyLabel = "Leertaste";
+let waitingForKeyChoice = false;
 
 let audioCtx = null;
 let oscillator = null;
@@ -71,7 +62,14 @@ let gainNode = null;
 
 let isPressing = false;
 let pressStartTime = 0;
+
 let finalizeLetterTimer = null;
+let finishPauseTimer = null;
+let longPauseTimer = null;
+let longPauseViolation = false;
+
+const PASS_HINT = "Richtig gemorst. Das Passwort ist der Name des Schulhauses.";
+const Q_CODE_REPEAT = "QSM";
 
 const toleranceSettings = [
   { name: "streng", dotMaxFactor: 1.8, letterPauseFactor: 2.6 },
@@ -82,8 +80,9 @@ const toleranceSettings = [
 function init() {
   updateLabels();
   updateModeFromRadios();
-  setupEventListeners();
   updateStartUI();
+  updateMorseKeyLabels();
+  setupEventListeners();
   resetAppState();
 }
 
@@ -99,12 +98,16 @@ function setupEventListeners() {
     });
   });
 
+  chooseKeyBtn.addEventListener("click", () => {
+    waitingForKeyChoice = true;
+    updateMorseKeyLabels("nächste Taste drücken ...");
+    setFeedback("Drücke jetzt die Taste, die als Morsetaste dienen soll.", "neutral");
+  });
+
   startBtn.addEventListener("click", startApp);
   backBtn.addEventListener("click", goBack);
-
   playBtn.addEventListener("click", playTarget);
   clearBtn.addEventListener("click", clearCurrentAttempt);
-  finishBtn.addEventListener("click", finishAttempt);
 
   morseKey.addEventListener("pointerdown", (e) => {
     e.preventDefault();
@@ -125,8 +128,21 @@ function setupEventListeners() {
   });
 
   document.addEventListener("keydown", (e) => {
-    if (e.code === "Space") {
+    if (waitingForKeyChoice) {
       e.preventDefault();
+
+      morseKeyCode = e.code;
+      morseKeyLabel = getReadableKeyName(e);
+      waitingForKeyChoice = false;
+
+      updateMorseKeyLabels();
+      setFeedback(`Morsetaste festgelegt: ${morseKeyLabel}`, "success");
+      return;
+    }
+
+    if (e.code === morseKeyCode) {
+      e.preventDefault();
+
       if (!appScreen.classList.contains("hidden") && !e.repeat) {
         handlePressStart();
       }
@@ -134,8 +150,9 @@ function setupEventListeners() {
   });
 
   document.addEventListener("keyup", (e) => {
-    if (e.code === "Space") {
+    if (e.code === morseKeyCode) {
       e.preventDefault();
+
       if (!appScreen.classList.contains("hidden")) {
         handlePressEnd();
       }
@@ -149,18 +166,32 @@ function setupEventListeners() {
 
 function updateModeFromRadios() {
   const checked = document.querySelector('input[name="appMode"]:checked');
-  appMode = checked ? checked.value : "exam";
+  appMode = checked ? checked.value : "free";
 }
 
 function updateStartUI() {
-  const showNames = appMode === "exam";
-  document.getElementById("nameFields").style.display = showNames ? "block" : "none";
+  nameFields.style.display = appMode === "free" ? "none" : "block";
 }
 
 function updateLabels() {
   unitLabel.textContent = `${unitSlider.value} ms`;
   freqLabel.textContent = `${freqSlider.value} Hz`;
   toleranceLabel.textContent = toleranceSettings[Number(toleranceSlider.value)].name;
+}
+
+function updateMorseKeyLabels(customText) {
+  const text = customText || morseKeyLabel;
+  currentKeyLabel.textContent = text;
+  currentKeyLabel2.textContent = text;
+}
+
+function getReadableKeyName(e) {
+  if (e.code === "Space") return "Leertaste";
+  if (e.code.startsWith("Key")) return e.code.replace("Key", "");
+  if (e.code.startsWith("Digit")) return e.code.replace("Digit", "");
+  if (e.code.startsWith("Numpad")) return "Num " + e.code.replace("Numpad", "");
+  if (e.key && e.key.length === 1) return e.key.toUpperCase();
+  return e.key || e.code;
 }
 
 function getUnit() {
@@ -175,7 +206,7 @@ function getTolerance() {
   return toleranceSettings[Number(toleranceSlider.value)];
 }
 
-function normalizeNamePart(text) {
+function normalizeText(text) {
   return String(text || "")
     .toUpperCase()
     .normalize("NFD")
@@ -183,69 +214,40 @@ function normalizeNamePart(text) {
     .replace(/[^A-Z]/g, "");
 }
 
-function buildExpectedName() {
-  const first = normalizeNamePart(firstNameInput.value);
-  const last = normalizeNamePart(lastNameInput.value);
+function buildExpectedSentence() {
+  const first = normalizeText(firstNameInput.value);
+  const last = normalizeText(lastNameInput.value);
 
-  if (!first || !last) return "";
-  return `${first}${last}`;
+  if (!first || !last) return null;
+
+  displaySentence = `Mein Name ist ${first} ${last}`;
+  expectedText = `MEINNAMEIST${first}${last}`;
+  return expectedText;
 }
 
 function resetAppState() {
   recognizedLetters = [];
   currentInputSymbols = "";
+  longPauseViolation = false;
+
   livePattern.textContent = "–";
   liveDecode.textContent = "…";
   recognizedTextEl.textContent = "–";
   charCountEl.textContent = "0";
   statusTextEl.textContent = "Bereit";
   setFeedback("Noch keine Eingabe.", "neutral");
-}
 
-function startApp() {
-  updateModeFromRadios();
-
-  if (appMode === "exam") {
-    expectedText = buildExpectedName();
-
-    if (!expectedText) {
-      alert("Bitte Vorname und Nachname eingeben.");
-      return;
-    }
-
-    screenTitle.textContent = "Prüfung";
-    screenInfo.textContent = "Morse deinen ganzen Vor- und Nachnamen ohne Leerzeichen.";
-    targetText.textContent = `${normalizeNamePart(firstNameInput.value)} ${normalizeNamePart(lastNameInput.value)}`;
-    hintText.textContent = "Wenn dein ganzer Name korrekt gemorst ist, erhältst du den nächsten Hinweis.";
-    statusTextEl.textContent = "Prüfung läuft";
-  } else {
-    expectedText = "";
-    screenTitle.textContent = "Übungsmodus";
-    screenInfo.textContent = "Freies Morsen: Die App schreibt einfach mit, was sie versteht.";
-    targetText.textContent = "FREIES MORSEN";
-    hintText.textContent = "Morse frei. Mit Überprüfen wird nichts bewertet, nur angezeigt.";
-    statusTextEl.textContent = "Freies Üben";
-  }
-
-  resetAppState();
-
-  setupScreen.classList.add("hidden");
-  appScreen.classList.remove("hidden");
-
-  ensureAudio();
-}
-
-function goBack() {
-  stopTone();
-  clearLetterTimer();
-  isPressing = false;
-  setupScreen.classList.remove("hidden");
-  appScreen.classList.add("hidden");
+  clearAllTimers();
 }
 
 function clearCurrentAttempt() {
-  clearLetterTimer();
   resetAppState();
+
+  if (appMode === "free") {
+    statusTextEl.textContent = "Freies Morsen";
+  } else {
+    statusTextEl.textContent = appMode === "exam" ? "Prüfung läuft" : "Übung läuft";
+  }
 }
 
 function setFeedback(text, type = "neutral") {
@@ -297,9 +299,7 @@ function stopTone() {
   if (oscillator) {
     try {
       oscillator.stop();
-    } catch (err) {
-      // ignore
-    }
+    } catch (err) {}
     oscillator.disconnect();
     oscillator = null;
   }
@@ -331,37 +331,21 @@ async function playMorsePattern(pattern) {
   }
 }
 
-async function playTarget() {
-  let textToPlay = "";
-
-  if (appMode === "exam") {
-    textToPlay = expectedText;
-  } else {
-    const current = recognizedLetters.join("");
-    if (!current) {
-      setFeedback("Im Übungsmodus wird nur bereits gemorstes Material vorgespielt.", "warning");
-      return;
-    }
-    textToPlay = current;
-  }
-
-  if (!textToPlay) return;
-
+async function playTextAsMorse(text) {
   playBtn.disabled = true;
-  finishBtn.disabled = true;
   clearBtn.disabled = true;
   morseKey.disabled = true;
 
   const unit = getUnit();
 
-  for (let i = 0; i < textToPlay.length; i++) {
-    const ch = textToPlay[i];
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
     const pattern = MORSE_MAP[ch];
     if (!pattern) continue;
 
     await playMorsePattern(pattern);
 
-    if (i < textToPlay.length - 1) {
+    if (i < text.length - 1) {
       await sleep(unit * 3);
     }
   }
@@ -369,9 +353,22 @@ async function playTarget() {
   await sleep(unit * 2);
 
   playBtn.disabled = false;
-  finishBtn.disabled = false;
   clearBtn.disabled = false;
   morseKey.disabled = false;
+}
+
+function playTarget() {
+  if (appMode === "free") {
+    const text = recognizedLetters.join("");
+    if (!text) {
+      setFeedback("Im freien Modus kann nur bereits erkannter Text vorgespielt werden.", "warning");
+      return;
+    }
+    playTextAsMorse(text);
+    return;
+  }
+
+  playTextAsMorse(expectedText);
 }
 
 function handlePressStart() {
@@ -379,6 +376,8 @@ function handlePressStart() {
 
   ensureAudio();
   clearLetterTimer();
+  clearFinishPauseTimer();
+  clearLongPauseTimer();
 
   isPressing = true;
   pressStartTime = performance.now();
@@ -401,12 +400,101 @@ function handlePressEnd() {
   currentInputSymbols += symbol;
   livePattern.textContent = currentInputSymbols;
 
-  const waitMs = unit * tolerance.letterPauseFactor;
-
   clearLetterTimer();
+
   finalizeLetterTimer = setTimeout(() => {
     finalizeCurrentLetter();
-  }, waitMs);
+  }, unit * tolerance.letterPauseFactor);
+}
+
+function finalizeCurrentLetter() {
+  if (!currentInputSymbols) return;
+
+  const pattern = currentInputSymbols;
+  const decoded = patternToLetter(pattern);
+
+  currentInputSymbols = "";
+  livePattern.textContent = "–";
+
+  if (!decoded) {
+    recognizedLetters.push("?");
+  } else {
+    recognizedLetters.push(decoded);
+  }
+
+  updateRecognizedUI();
+
+  if (appMode === "free") {
+    setFeedback(`Erkannt: ${decoded || "?"}`, decoded ? "neutral" : "warning");
+  } else if (appMode === "practice") {
+    setFeedback("Weiter morsen. Rückmeldung kommt nach 3 Sekunden Pause.", "neutral");
+  } else {
+    setFeedback("Prüfung läuft. Rückmeldung kommt nach der Morsepause.", "neutral");
+  }
+
+  scheduleEndFeedback();
+  scheduleLongPauseCheckIfNeeded();
+}
+
+function scheduleEndFeedback() {
+  clearFinishPauseTimer();
+
+  finishPauseTimer = setTimeout(() => {
+    finishAttemptAfterPause();
+  }, 3000);
+}
+
+function scheduleLongPauseCheckIfNeeded() {
+  clearLongPauseTimer();
+
+  if (appMode !== "exam") return;
+
+  const recognized = recognizedLetters.join("");
+  if (recognized === expectedText) return;
+
+  longPauseTimer = setTimeout(() => {
+    longPauseViolation = true;
+  }, 2000);
+}
+
+function finishAttemptAfterPause() {
+  clearLetterTimer();
+  clearLongPauseTimer();
+
+  if (currentInputSymbols) {
+    finalizeCurrentLetter();
+    return;
+  }
+
+  const recognized = recognizedLetters.join("");
+
+  if (appMode === "free") {
+    statusTextEl.textContent = "Frei gemorst";
+    setFeedback(`Erkannt wurde: ${recognized || "∅"}`, "neutral");
+    return;
+  }
+
+  if (appMode === "practice") {
+    if (recognized === expectedText) {
+      statusTextEl.textContent = "Richtig";
+      setFeedback(PASS_HINT, "success");
+    } else {
+      statusTextEl.textContent = "Noch nicht richtig";
+      setFeedback(`Erkannt wurde: ${recognized || "∅"}. Erwartet war: ${expectedText}.`, "error");
+    }
+    return;
+  }
+
+  if (appMode === "exam") {
+    if (recognized === expectedText && !longPauseViolation) {
+      statusTextEl.textContent = "Bestanden";
+      setFeedback(PASS_HINT, "success");
+    } else {
+      statusTextEl.textContent = "Nicht bestanden";
+      setFeedback("Nicht verstanden, wiederholen. QSM", "error");
+      playTextAsMorse(Q_CODE_REPEAT);
+    }
+  }
 }
 
 function clearLetterTimer() {
@@ -416,61 +504,83 @@ function clearLetterTimer() {
   }
 }
 
-function finalizeCurrentLetter() {
-  if (!currentInputSymbols) return;
-
-  const typedPattern = currentInputSymbols;
-  const decoded = patternToLetter(typedPattern);
-
-  currentInputSymbols = "";
-  livePattern.textContent = "–";
-
-  if (!decoded) {
-    recognizedLetters.push("?");
-    updateRecognizedUI();
-    setFeedback(`Die Folge ${typedPattern} wurde als ? gespeichert.`, "warning");
-    return;
+function clearFinishPauseTimer() {
+  if (finishPauseTimer) {
+    clearTimeout(finishPauseTimer);
+    finishPauseTimer = null;
   }
-
-  recognizedLetters.push(decoded);
-  updateRecognizedUI();
-  setFeedback(`Erkannt: ${decoded}`, "neutral");
 }
 
-function finishAttempt() {
-  clearLetterTimer();
+function clearLongPauseTimer() {
+  if (longPauseTimer) {
+    clearTimeout(longPauseTimer);
+    longPauseTimer = null;
+  }
+}
 
-  if (currentInputSymbols) {
-    finalizeCurrentLetter();
+function clearAllTimers() {
+  clearLetterTimer();
+  clearFinishPauseTimer();
+  clearLongPauseTimer();
+}
+
+function startApp() {
+  updateModeFromRadios();
+
+  if (appMode !== "free") {
+    const expected = buildExpectedSentence();
+
+    if (!expected) {
+      alert("Bitte Vorname und Nachname eingeben.");
+      return;
+    }
+  } else {
+    expectedText = "";
+    displaySentence = "";
   }
 
-  const recognized = recognizedLetters.join("");
+  resetAppState();
+
+  if (appMode === "free") {
+    screenTitle.textContent = "Freies Morsen";
+    screenInfo.textContent = "Morse frei. Die App schreibt mit, was sie versteht.";
+    targetText.textContent = "FREIES MORSEN";
+    hintText.textContent = "Nach 3 Sekunden Pause wird die Eingabe abgeschlossen.";
+    statusTextEl.textContent = "Freies Morsen";
+  }
 
   if (appMode === "practice") {
-    statusTextEl.textContent = "Frei gemorst";
-    setFeedback(`Erkannt wurde: ${recognized || "∅"}`, "neutral");
-    return;
+    screenTitle.textContent = "Üben für die Prüfung";
+    screenInfo.textContent = "Morse den ganzen Satz. Rückmeldung kommt erst nach 3 Sekunden Pause.";
+    targetText.textContent = displaySentence;
+    hintText.textContent = "Der Satz muss ohne Pause länger als 2 Sekunden gemorst werden.";
+    statusTextEl.textContent = "Übung läuft";
   }
 
-  if (!recognized) {
-    setFeedback("Es wurde noch nichts erkannt.", "warning");
-    statusTextEl.textContent = "Keine Eingabe";
-    return;
+  if (appMode === "exam") {
+    screenTitle.textContent = "Prüfung";
+    screenInfo.textContent = "Morse den ganzen Satz. In der Prüfung gibt es erst am Schluss Rückmeldung.";
+    targetText.textContent = displaySentence;
+    hintText.textContent = "Keine Pause länger als 2 Sekunden. Schluss nach 3 Sekunden Morsepause.";
+    statusTextEl.textContent = "Prüfung läuft";
   }
 
-  if (recognized === expectedText) {
-    statusTextEl.textContent = "Bestanden";
-    setFeedback(
-      "Richtig gemorst. Das Passwort ist der Name des Schulhauses.",
-      "success"
-    );
-  } else {
-    statusTextEl.textContent = "Nicht bestanden";
-    setFeedback(
-      `Nicht korrekt. Erkannt wurde: ${recognized}. Versuche es noch einmal.`,
-      "error"
-    );
-  }
+  setupScreen.classList.add("hidden");
+  appScreen.classList.remove("hidden");
+
+  ensureAudio();
+}
+
+function goBack() {
+  stopTone();
+  clearAllTimers();
+
+  isPressing = false;
+  waitingForKeyChoice = false;
+  updateMorseKeyLabels();
+
+  setupScreen.classList.remove("hidden");
+  appScreen.classList.add("hidden");
 }
 
 init();
