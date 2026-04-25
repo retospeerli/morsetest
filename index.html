@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Morse-Prüfungsapp</title>
+  <title>Morsetest</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div class="app">
     <header class="app-header">
-      <h1>Morse-Prüfungsapp</h1>
-      <p class="subtitle">Prüfung und freies Üben mit echter Morsetaste</p>
+      <h1>Morsetest</h1>
+      <p class="subtitle">Freies Morsen, Prüfungsübung und Prüfung</p>
     </header>
 
     <main>
@@ -22,23 +22,29 @@
             <h3>Modus</h3>
 
             <label class="mode-option">
-              <input type="radio" name="appMode" value="exam" checked />
-              <span>Prüfungsmodus</span>
+              <input type="radio" name="appMode" value="free" checked />
+              <span>Freies Morsen</span>
             </label>
 
             <label class="mode-option">
               <input type="radio" name="appMode" value="practice" />
-              <span>Übungsmodus: freies Morsen</span>
+              <span>Üben für die Prüfung</span>
+            </label>
+
+            <label class="mode-option">
+              <input type="radio" name="appMode" value="exam" />
+              <span>Prüfung</span>
             </label>
 
             <div class="info-box">
-              <p><strong>Prüfungsmodus:</strong> Du gibst zuerst deinen Vor- und Nachnamen ein und morst danach deinen ganzen Namen.</p>
-              <p><strong>Übungsmodus:</strong> Du morst frei. Die App schreibt mit, was sie versteht.</p>
+              <p><strong>Freies Morsen:</strong> Die App schreibt mit, was sie versteht.</p>
+              <p><strong>Üben:</strong> Du morst den ganzen Prüfungssatz und bekommst am Schluss Rückmeldung.</p>
+              <p><strong>Prüfung:</strong> Rückmeldung gibt es erst nach der Morsepause. Bei Fehler wird nur QSM zurückgemorst.</p>
             </div>
           </div>
 
           <div class="card">
-            <h3>Angaben und Einstellungen</h3>
+            <h3>Name und Einstellungen</h3>
 
             <div id="nameFields">
               <label class="setting">
@@ -75,7 +81,7 @@
       <section id="appScreen" class="panel hidden">
         <div class="top-bar">
           <div>
-            <h2 id="screenTitle">Prüfung</h2>
+            <h2 id="screenTitle">Morsetest</h2>
             <p id="screenInfo" class="small-text"></p>
           </div>
           <button id="backBtn" class="ghost-btn">Zurück</button>
@@ -84,12 +90,11 @@
         <div class="grid two training-grid">
           <div class="card target-card">
             <p class="label">Aufgabe</p>
-            <div id="targetText" class="target-text">NAME</div>
+            <div id="targetText" class="target-text">FREIES MORSEN</div>
 
             <div class="target-actions">
               <button id="playBtn" class="secondary-btn">Vorspielen</button>
               <button id="clearBtn" class="ghost-btn">Eingabe löschen</button>
-              <button id="finishBtn" class="secondary-btn">Überprüfen</button>
             </div>
 
             <div class="morse-hint">
@@ -108,8 +113,13 @@
             </button>
 
             <div class="legend">
-              <div><strong>Leertaste</strong> oder Taste am Bildschirm</div>
+              <div><strong id="currentKeyLabel">Leertaste</strong> oder Taste am Bildschirm</div>
               <div><strong>Kurz</strong> = Punkt · &nbsp; <strong>Lang</strong> = Strich −</div>
+            </div>
+
+            <div class="key-select-box">
+              <button id="chooseKeyBtn" class="ghost-btn" type="button">Taste auswählen</button>
+              <span>Aktuelle Morsetaste: <strong id="currentKeyLabel2">Leertaste</strong></span>
             </div>
           </div>
         </div>
@@ -121,7 +131,7 @@
 
         <div class="grid three">
           <div class="card stat-card">
-            <p class="label">Erkannter Text</p>
+            <p class="label">Erkannt</p>
             <div id="recognizedText" class="result-text">–</div>
           </div>
           <div class="card stat-card">
